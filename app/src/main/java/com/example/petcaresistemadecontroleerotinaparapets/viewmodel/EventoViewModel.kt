@@ -49,6 +49,16 @@ class EventoViewModel @Inject constructor(
         }
     }
 
+    // ✅ FUNÇÃO ADICIONADA
+    fun excluirEvento(evento: Evento) {
+        viewModelScope.launch {
+            eventoRepository.excluirEvento(evento)
+            // Também cancela qualquer notificação pendente (se houver)
+            scheduler.cancelNotification(evento)
+        }
+    }
+    // --- FIM DA ADIÇÃO ---
+
     fun carregarEventosDoPet(petId: Int) {
         viewModelScope.launch {
             _uiState.value = EventoUiState.Loading

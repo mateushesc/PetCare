@@ -57,6 +57,25 @@ fun PetDetailScreen(
     }
     // --- FIM DA LÓGICA DE EXCLUSÃO ---
 
+    // ✅ --- LÓGICA DE EXCLUSÃO DE EVENTO ---
+    var showDeleteEventoDialog by remember { mutableStateOf<Evento?>(null) } // Guarda o evento a ser excluído
+
+    if (showDeleteEventoDialog != null) {
+        DeleteEventoConfirmationDialog(
+            evento = showDeleteEventoDialog!!,
+            onConfirm = { evento ->
+                eventoViewModel.excluirEvento(evento)
+                showDeleteEventoDialog = null
+                Toast.makeText(context, "Evento '${evento.tipoEvento}' excluído.", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = {
+                showDeleteEventoDialog = null
+            }
+        )
+    }
+    // --- FIM DA ADIÇÃO ---
+
+
     LaunchedEffect(petIdInt) {
         if (petIdInt != null) {
             petViewModel.carregarPetPorId(petIdInt)
@@ -136,7 +155,13 @@ fun PetDetailScreen(
                     }
                 } else {
                     items(eventos, key = { it.idEvento }) { evento ->
-                        EventoCard(evento)
+                        // ✅ CHAMADA DO EventoCard ATUALIZADA
+                        EventoCard(
+                            evento = evento,
+                            onDeleteClick = {
+                                showDeleteEventoDialog = evento // Define qual evento excluir
+                            }
+                        )
                     }
                 }
             }
@@ -174,8 +199,38 @@ private fun DeleteConfirmationDialog(
 }
 // --- FIM DA ADIÇÃO ---
 
+// ✅ --- DIÁLOGO DE CONFIRMAÇÃO DE EVENTO (NOVO) ---
+@Composable
+private fun DeleteEventoConfirmationDialog(
+    evento: Evento,
+    onConfirm: (Evento) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Excluir Evento") },
+        text = { Text("Tem certeza que deseja excluir o evento '${evento.tipoEvento}' de ${evento.dataEvento}?") },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(evento) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Excluir")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+// --- FIM DA ADIÇÃO ---
 
-// ... (PetInfoCard, EventoCard, InfoLinha permanecem os mesmos) ...
+
+// ... (PetInfoCard, InfoLinha permanecem os mesmos) ...
 @Composable
 private fun PetInfoCard(pet: Pet) {
     Card(
@@ -199,8 +254,9 @@ private fun PetInfoCard(pet: Pet) {
     }
 }
 
+// ✅ --- EventoCard ATUALIZADO (com botão de excluir) ---
 @Composable
-private fun EventoCard(evento: Evento) {
+private fun EventoCard(evento: Evento, onDeleteClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -209,11 +265,11 @@ private fun EventoCard(evento: Evento) {
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp) // Padding ajustado
                 .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            // Coluna de Informações (ocupa a maior parte)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = evento.tipoEvento,
@@ -228,14 +284,26 @@ private fun EventoCard(evento: Evento) {
                     )
                 }
             }
+            // Data
             Text(
                 text = evento.dataEvento,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
+            // Botão de Excluir
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Excluir Evento",
+                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f) // Cor de erro
+                )
+            }
         }
     }
 }
+// --- FIM DA ATUALIZAÇÃO ---
+
 
 @Composable
 private fun InfoLinha(label: String, valor: String) {

@@ -25,6 +25,13 @@ class EventoRepository @Inject constructor(
         eventoDao.insertEvento(evento)
     }
 
+    // ✅ FUNÇÃO ADICIONADA
+    suspend fun excluirEvento(evento: Evento) {
+        eventoDao.deleteEvento(evento)
+    }
+    // --- FIM DA ADIÇÃO ---
+
+
     /**
      * Busca todos os eventos (para RF03).
      * ✅ CORREÇÃO: Aplicando o mesmo padrão reativo do PetRepository.
