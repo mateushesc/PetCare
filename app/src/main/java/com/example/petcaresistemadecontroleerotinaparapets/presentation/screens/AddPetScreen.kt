@@ -13,39 +13,56 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.petcaresistemadecontroleerotinaparapets.data.local.entities.Pet
 import com.example.petcaresistemadecontroleerotinaparapets.viewmodel.AuthViewModel
 import com.example.petcaresistemadecontroleerotinaparapets.viewmodel.PetViewModel
-import com.example.petcaresistemadecontroleerotinaparapets.viewmodel.PetUiState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPetScreen(
     petViewModel: PetViewModel,
-    authViewModel: AuthViewModel, // (Pode ser usado para ID do usuário, mas o ViewModel já o obtém)
-    onPetSaved: () -> Unit
+    authViewModel: AuthViewModel,
+    onPetSaved: () -> Unit,
+    petId: String? = null
 ) {
-    // Estados para os campos de texto
     var nome by remember { mutableStateOf("") }
     var especie by remember { mutableStateOf("") }
     var raca by remember { mutableStateOf("") }
     var idade by remember { mutableStateOf("") }
 
     val context = LocalContext.current
-    val uiState by petViewModel.uiState.collectAsState()
 
-    // Observa o estado da UI para feedback
-    LaunchedEffect(uiState) {
-        if (uiState is PetUiState.Error) {
-            Toast.makeText(context, (uiState as PetUiState.Error).message, Toast.LENGTH_SHORT).show()
+    // ✅✅✅ CORREÇÃO AQUI (LINHA 35) ✅✅✅
+    // Trocamos 'getCurrentUserId()' (que não existe)
+    // por 'getCurrentUser()?.uid' (que pega o ID do usuário logado)
+    val currentUserId = authViewModel.getCurrentUser()?.uid //
+    // --- FIM DA CORREÇÃO ---
+
+    val isEditMode = petId != null
+    val petIdInt = petId?.toIntOrNull()
+    var existingPet by remember { mutableStateOf<Pet?>(null) }
+
+    // (Carrega os dados do pet se estiver no modo de edição)
+    LaunchedEffect(petIdInt) {
+        if (isEditMode && petIdInt != null) {
+            val pet = petViewModel.getPetParaEdicao(petIdInt)
+            if (pet != null) {
+                existingPet = pet
+                nome = pet.nome
+                especie = pet.especie
+                raca = pet.raca
+                idade = pet.idade.toString()
+            }
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Adicionar Novo Pet") },
+                title = { Text(if (isEditMode) "Editar Pet" else "Adicionar Pet") },
                 navigationIcon = {
-                    IconButton(onClick = onPetSaved) { // 'onPetSaved' aqui age como "Voltar"
+                    IconButton(onClick = onPetSaved) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 }
@@ -56,11 +73,9 @@ fun AddPetScreen(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()), // Permite rolar se os campos não couberem
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Insira os dados do seu pet", style = MaterialTheme.typography.titleMedium)
-
             OutlinedTextField(
                 value = nome,
                 onValueChange = { nome = it },
@@ -68,7 +83,6 @@ fun AddPetScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
-
             OutlinedTextField(
                 value = especie,
                 onValueChange = { especie = it },
@@ -76,19 +90,17 @@ fun AddPetScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
-
             OutlinedTextField(
                 value = raca,
                 onValueChange = { raca = it },
-                label = { Text("Raça (ex: SRD, Poodle)") },
+                label = { Text("Raça * (ex: Poodle, Siamês)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
-
             OutlinedTextField(
                 value = idade,
                 onValueChange = { idade = it },
-                label = { Text("Idade") },
+                label = { Text("Idade * (anos)") },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
@@ -98,18 +110,50 @@ fun AddPetScreen(
 
             Button(
                 onClick = {
-                    // Chama o ViewModel para adicionar o pet
-                    petViewModel.addPet(nome, especie, raca, idade)
+                    val idadeInt = idade.toIntOrNull()
 
-                    // Se a validação do ViewModel passar (não for Error), volta
-                    if (nome.isNotBlank() && especie.isNotBlank()) {
-                        Toast.makeText(context, "$nome salvo!", Toast.LENGTH_SHORT).show()
-                        onPetSaved() // Navega de volta
+                    if (nome.isBlank() || especie.isBlank() || raca.isBlank() || idadeInt == null) {
+                        Toast.makeText(context, "Preencha todos os campos obrigatórios.", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
+
+                    // ✅ A verificação abaixo agora funciona, pois 'currentUserId' é um String?
+                    if (currentUserId == null) {
+                        Toast.makeText(context, "Erro: Usuário não autenticado.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    if (isEditMode && existingPet != null) {
+                        // Modo Edição: Atualiza o pet existente
+                        val petAtualizado = existingPet!!.copy(
+                            nome = nome,
+                            especie = especie,
+                            raca = raca,
+                            idade = idadeInt
+                        )
+                        petViewModel.updatePet(petAtualizado)
+                        Toast.makeText(context, "Pet atualizado!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        // Modo Adição: Cria um novo pet
+                        val novoPet = Pet(
+                            nome = nome,
+                            especie = especie,
+                            raca = raca,
+                            idade = idadeInt,
+                            // ✅ Erro 2 resolvido: 'currentUserId' agora é um 'String' (não-nulo)
+                            // graças à verificação 'if (currentUserId == null)' acima
+                            userId = currentUserId,
+                            isSynced = false
+                        )
+                        petViewModel.addPet(novoPet)
+                        Toast.makeText(context, "Pet salvo!", Toast.LENGTH_SHORT).show()
+                    }
+
+                    onPetSaved()
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Salvar Pet")
+                Text(if (isEditMode) "Atualizar Pet" else "Salvar Pet")
             }
         }
     }

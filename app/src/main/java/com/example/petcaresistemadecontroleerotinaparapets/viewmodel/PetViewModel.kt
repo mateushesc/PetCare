@@ -17,60 +17,34 @@ class PetViewModel @Inject constructor(
     private val petRepository: PetRepository
 ) : ViewModel() {
 
-    // --- Lista de Pets (para MyPetsScreen) ---
+    // (Para MyPetsScreen)
     private val _pets = MutableStateFlow<List<Pet>>(emptyList())
     val pets: StateFlow<List<Pet>> = _pets.asStateFlow()
 
-    // --- PET SELECIONADO (ADICIONADO) ---
     // (Para PetDetailScreen)
     private val _selectedPet = MutableStateFlow<Pet?>(null)
     val selectedPet: StateFlow<Pet?> = _selectedPet.asStateFlow()
-    // --- FIM DA ADIÇÃO ---
 
     private val _uiState = MutableStateFlow<PetUiState>(PetUiState.Idle)
     val uiState: StateFlow<PetUiState> = _uiState.asStateFlow()
 
     init {
-        carregarPets()
+        carregarPetsDoUsuario()
     }
 
-    private fun carregarPets() {
+    fun addPet(pet: Pet) {
         viewModelScope.launch {
-            _uiState.value = PetUiState.Loading
-            petRepository.getPets()
-                .catch { e ->
-                    _uiState.value = PetUiState.Error(e.message ?: "Erro ao carregar pets")
-                }
-                .collect { petList ->
-                    _pets.value = petList
-                    _uiState.value = PetUiState.Success
-                }
+            petRepository.addPet(pet)
         }
     }
 
-    // --- FUNÇÃO ADICIONADA ---
-    /**
-     * Carrega um pet específico pelo ID.
-     * Chamado pela 'PetDetailScreen'.
-     */
-    fun carregarPetPorId(petId: Int) {
+    // ✅ FUNÇÃO ADICIONADA
+    fun updatePet(pet: Pet) {
         viewModelScope.launch {
-            _selectedPet.value = petRepository.getPetById(petId)
+            petRepository.updatePet(pet)
         }
     }
     // --- FIM DA ADIÇÃO ---
-
-    fun addPet(nome: String, especie: String, raca: String, idadeStr: String) {
-        viewModelScope.launch {
-            val idade = idadeStr.toIntOrNull() ?: 0
-            if (nome.isBlank() || especie.isBlank()) {
-                _uiState.value = PetUiState.Error("Nome e espécie são obrigatórios.")
-                return@launch
-            }
-
-            petRepository.addPet(nome, especie, raca, idade)
-        }
-    }
 
     fun deletePet(pet: Pet) {
         viewModelScope.launch {
@@ -78,14 +52,35 @@ class PetViewModel @Inject constructor(
         }
     }
 
-    fun updatePet(pet: Pet) {
+    fun carregarPetsDoUsuario() {
         viewModelScope.launch {
-            petRepository.updatePet(pet)
+            _uiState.value = PetUiState.Loading
+            petRepository.getPetsDoUsuario()
+                .catch { e ->
+                    _uiState.value = PetUiState.Error(e.message ?: "Erro ao carregar pets")
+                }
+                .collect { listaDePets ->
+                    _pets.value = listaDePets
+                    _uiState.value = PetUiState.Success
+                }
         }
     }
+
+    fun carregarPetPorId(petId: Int) {
+        viewModelScope.launch {
+            _selectedPet.value = petRepository.getPetById(petId)
+        }
+    }
+
+    // ✅ FUNÇÃO ADICIONADA
+    // (Usada pela AddPetScreen para buscar o pet no modo de edição)
+    suspend fun getPetParaEdicao(petId: Int): Pet? {
+        return petRepository.getPetById(petId)
+    }
+    // --- FIM DA ADIÇÃO ---
 }
 
-// (Classe de estado da UI permanece a mesma)
+// (Classe de estado da UI)
 sealed class PetUiState {
     object Idle : PetUiState()
     object Loading : PetUiState()

@@ -1,6 +1,7 @@
 package com.example.petcaresistemadecontroleerotinaparapets.data.local.dao
 
 import androidx.room.Dao
+import androidx.room.Delete // ✅ IMPORT ADICIONADO
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -11,6 +12,10 @@ import kotlinx.coroutines.flow.Flow
 interface EventoDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvento(evento: Evento)
+
+    // ✅ FUNÇÃO ADICIONADA
+    @Delete
+    suspend fun deleteEvento(evento: Evento)
 
     @Query("SELECT * FROM eventos WHERE petId = :petId ORDER BY dataEvento DESC")
     fun getEventosDoPet(petId: Int): Flow<List<Evento>>
